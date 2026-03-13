@@ -1,0 +1,153 @@
+#include "bits/stdc++.h"
+#ifdef ONLINE_JUDGE
+#define dbg(...)
+#endif
+using namespace std;
+
+#define int int64_t
+
+
+struct data_base{
+    double mean_val = 0.0;
+    double M2 = 0.0; 
+    int cnt = 0;
+    multiset<int> low, high;
+    map<int, int> freq;
+    set<pair<int, int>> freq_order;
+
+    void balance(){//to balance the two multisets, low and high, such that their sizes are almost equal
+        while(low.size() < high.size()){
+        int x = *high.begin();
+        low.insert(x);
+        high.erase(high.find(x));
+        }
+
+        while(low.size() > high.size()+1){
+            int x = *low.rbegin();
+            high.insert(x);
+            low.erase(low.find(x));
+            }
+    }
+
+    void insertt(int x){
+        // CHANGED: Replaced modular sum with Welford's algorithm to calculate running mean and M2 (for variance)
+        // sum = (sum + x) % m;//mean
+        cnt++;
+        double delta = x - mean_val;
+        mean_val += delta / cnt;
+        double delta2 = x - mean_val;
+        M2 += delta * delta2;
+        
+        //median
+        if(low.empty() || x <= (*low.rbegin())) low.insert(x);
+        else high.insert(x);
+        balance();
+
+        //mode
+        if(freq[x] > 0) freq_order.erase({freq[x], -x});
+        freq[x]++;
+        freq_order.insert({freq[x], -x});
+    }
+
+    void remove(int x){
+        // CHANGED: Replaced modular remove with Welford's remove logic to safely reverse mean and M2
+        // sum = (sum - (x % m) + m) % m;//mean
+        double delta2 = x - mean_val;
+        if (cnt > 1) {
+            mean_val -= delta2 / (cnt - 1);
+            double delta = x - mean_val;
+            M2 -= delta * delta2;
+        } else {
+            mean_val = 0.0;
+            M2 = 0.0;
+        }
+        cnt--;
+
+        //median
+        auto it = low.find(x);
+        if(it != low.end()) low.erase(it);
+        else high.erase(high.find(x));
+        balance();
+
+        //mode
+        freq_order.erase({freq[x], -x});
+        freq[x]--;
+        if(freq[x] > 0) freq_order.insert({freq[x], -x});
+    }
+
+    // CHANGED: Return type to double, returning the precise decimal mean
+    double mean(){
+        if(cnt == 0) return -1;
+        // return (sum * inv(cnt)) % m;
+        return mean_val;
+    }
+
+    // CHANGED: Return type to double, returning precise decimal median
+    double median(){
+        if(cnt == 0) return -1;
+        // if(cnt % 2) return (*low.rbegin()) % m;
+        // else return ((*low.rbegin() + *high.begin()) % m * inv(2)) % m;
+        if(cnt % 2) return (double)(*low.rbegin());
+        else return ((double)*low.rbegin() + (double)*high.begin()) / 2.0;
+    }
+
+    int mode(){
+        if(cnt == 0) return -1;
+        return (-freq_order.rbegin()->second);
+    }
+
+    // CHANGED: Added the variance function calculating sample variance from M2
+    double variance(){
+        if(cnt <= 1) return 0.0; 
+        return M2 / (cnt - 1);
+    }
+};
+
+void solve() {
+    int q;
+    cin>>q;
+    data_base db;
+    
+    while(q--){
+
+        string s;
+        cin>>s;
+
+        if(s == "insert"){
+            int x; cin>>x;
+            db.insertt(x);
+        }
+
+        else if(s == "remove"){
+            int x; cin>>x;
+            db.remove(x);
+        }
+
+        else if(s == "getMean"){
+            cout<<db.mean()<<"\n";
+        }
+
+        else if(s == "getMedian"){
+            cout<<db.median()<<"\n";
+        }
+
+        else if(s == "getMode"){
+            cout<<db.mode()<<"\n";
+        }
+
+        else if(s == "getVariance"){
+            cout<<db.variance()<<"\n";
+        }
+    }
+}
+
+int32_t main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int t = 1;
+    cin >> t;
+    while (t--) {
+        solve();
+    }
+    return 0;
+}
